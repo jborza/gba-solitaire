@@ -6,16 +6,16 @@
 
 #board {
     padding-top: 20px;
-    padding-left: 4px;
+    padding-left: 2px;
 }
 
 .card {
     width: 28px;
     height: 36px;
+    margin-left: 5px;
     float: left;
     background-color: white;
     font-size: x-small;
-    margin-left: 4px;
 }
 
 .column-1 {}
@@ -51,4 +51,11 @@
 .second-row {
     margin-top: 1px;
     padding-top: 12px;
+}
+
+#score-row{
+    position: absolute;
+    margin-left: 4px;
+    font-size: xx-small;
+    color:white;
 }
