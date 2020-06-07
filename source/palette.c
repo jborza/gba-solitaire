@@ -1,4 +1,4 @@
-#include "color.h"
+#include "palette.h"
 
 void initialize_palette(){
 palette[0] = 0x0;

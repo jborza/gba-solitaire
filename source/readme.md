@@ -4,11 +4,21 @@ Solitaire was the first computer game I have played, ages ago, on an ancient Win
 
 # The target platform
 
-Let's target Gameboy Advance (GBA). It has a resolution of 240x160, four directional buttons on the d-pad, and A, B buttons and runs the ??? CPU at ??? MHz. We can develop in C using the excellent [devkitPro toolchain](https://devkitpro.org/). 
+Let's target Gameboy Advance (GBA). It has a resolution of 240x160, capable of displaying 32,768 (15-bit) colors. The input our directional buttons on the d-pad, and A, B buttons and runs and ARM7 CPU at 6.78 MHz. The games are stored on cartridges containing the ROM with the code and data. 
+
+In terms of capabilities it's like a hardware 2D engine, being able to display sprites at arbitrary locations, with hardware rotation and scaling, but also offering a bitmapped mode, sound generators, etc.
+
+There is no operating system running on the GBA, it's just bare metal. To interface with the hardware we'll use memory-mapped IO - for example the bitmapped mode works this way - by setting bytes of memory after the address `0x06000000` to something, pixels get drawn on the screen.
+
+We can develop in C using the excellent [devkitPro toolchain](https://devkitpro.org/). 
 
 ## Graphics
 
-The Game Boy Advance has a couple of graphic modes. I plan to use  [Mode 3](https://www.coranac.com/tonc/text/bitmaps.htm), which is a bitmap mode, with a resolution of 240x160 and a 16-bit palette of 16 colors.
+The Game Boy Advance has a couple of graphic modes. I plan either to use [Mode 3](https://www.coranac.com/tonc/text/bitmaps.htm), which is a bitmapped mode, with a resolution of 240x160 and a 16-bit palette of 16 colors. Or jump into the hardware accelerated graphics mode, which deals with sprites, tiles and background.
+
+A tile is an 8x8 pixel bitmap. It can have 4bpp or 8bpp colors, the latter obviously requiring more memory (64 bytes vs 32 bytes) A sprite is composed of multiple tiles. Tiles are stored in charblocks. A charblock has a size of 16 kb, so there's a room for 512 (or 256) tiles.
+
+This implies we'll have to convert our graphics into 8x8 tiles, and also implies that the game objects (such as cards) should be sized in multiples of 8 pixels as well.
 
 # Prototyping the dimensions
 
@@ -122,6 +132,90 @@ This is how it looks so far:
 
 # Implementing Solitaire
 
+Let's start by defining the cards and some relations.
+There are four suits: 
+- ♥ Heart 
+- ♠ Spade
+- ♣ Club
+- ♦ Diamond
+
+There are also the ranks (ascending)
+
+- A, 2, 3, 4, 5, 6, 7, 8, 9, 10, J, Q, K
+
+Hence the card structure can be defined in C as: 
+```c
+enum {
+	SUIT_HEART, SUIT_SPADE, SUIT_CLUB, SUIT_DIAMOND // ♥♠♣♦
+} ;
+
+enum {
+	RANK_A, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9, RANK_10, RANK_J, RANK_Q, RANK_K
+};
+
+typedef struct card {
+	int suit;
+	int rank;
+};
+```
+
+## Rules as function
+
+Solitaire defines a couple of card interactions, which we'll define as functions:
+- is ace? (can be placed on top of a blank pile)
+- is red? 
+- is black?
+- are alternate colors? (as card colors in columns must alternate between red and black)
+- is in sequence? (A -> 2 -> 3 ... -> K)
+- can be placed on foundation? (A♥ -> 2♥ -> 3♥ -> K♥)
+- can be placed on bottom? (is alternate and is in sequence) ( J♦ -> 10♠ -> 9♥ -> 8♣ -> 7♥)
+
+Can be implemented as a set of simple C functions:
+```c
+int is_black(card c) {
+	return c.suit == SUIT_CLUB || c.suit == SUIT_SPADE;
+}
+
+int is_red(card c) {
+	return c.suit == SUIT_HEART || c.suit == SUIT_DIAMOND;
+}
+
+int is_ace(card c) {
+	return c.rank == RANK_A;
+}
+
+int is_alternate_color(card first, card second) {
+	return is_black(first) != is_black(second);
+}
+
+int is_in_sequence(card lower, card higher) {
+	return higher.rank == lower.rank + 1;
+}
+
+int can_be_placed_bottom(card parent, card child) {
+	return is_alternate_color(parent, child) && is_in_sequence(child, parent);
+}
+
+int is_same_suit(card first, card second) {
+	return first.suit == second.suit;
+}
+
+int can_be_placed_on_foundation(card parent, card child) {
+	return is_same_suit(parent, child) && is_in_sequence(parent, child);
+}
+```
+
+This also can be tested during the development with a simple "test":
+
+```c
+    card c5S = make_card(SUIT_SPADE, RANK_5);
+	card c6H = make_card(SUIT_HEART, RANK_6);
+	printf("5s is black %d vs 1 \n", is_black(c5S));
+	printf("5s is red %d vs 0 \n", is_red(c5S));
+    printf("5s 6h is alternate %d vs 1 \n", is_alternate_color(c5S, c6H));
+    ...
+```
+
 !TODO
 
 # Graphics
@@ -189,3 +283,11 @@ typedef enum KEYPAD_BITS {
 	DPAD 		=	(KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT) /*!< mask all dpad buttons */
 } KEYPAD_BITS;
 ```
+
+# Next target
+M5Stick C
+80x160 LCD
+
+Here we have to drastically reduce card and board size (80x160).
+As M5Stick has only three buttons, we probably need to use and alternate control method. 
+Using the accelerometer to tap the stick from the left/right/top/bottom side we could move the cursor and use the big M5 button as the selector.
