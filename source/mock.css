@@ -1,0 +1,54 @@
+#screen{
+    width:240px;
+    height: 160px;
+    background-color: green;
+}
+
+#board {
+    padding-top: 20px;
+    padding-left: 4px;
+}
+
+.card {
+    width: 28px;
+    height: 36px;
+    float: left;
+    background-color: white;
+    font-size: x-small;
+    margin-left: 4px;
+}
+
+.column-1 {}
+
+.column-2 {
+    padding-top: 8px;
+}
+
+.column-3 {
+    padding-top: 16px;
+}
+
+.column-4 {
+    padding-top: 24px;
+}
+
+.column-5 {
+    padding-top: 32px;
+}
+
+.column-6 {
+    padding-top: 40px;
+}
+
+.column-7 {
+    padding-top: 48px;
+}
+
+.row {
+    clear: both;
+}
+
+.second-row {
+    margin-top: 1px;
+    padding-top: 12px;
+}
