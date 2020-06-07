@@ -1,32 +1,33 @@
-klondike notes:
+# What's this about
+
+Solitaire was the first computer game I have played, ages ago, on an ancient Windows 3.1 laptop. I have never actually implemented it. 
 
 # The target platform
 
-Gameboy Advance (GBA). It has a resolution of 240x160, four directional buttons on the d-pad, and A, B buttons.
+Let's target Gameboy Advance (GBA). It has a resolution of 240x160, four directional buttons on the d-pad, and A, B buttons and runs the ??? CPU at ??? MHz. We can develop in C using the excellent [devkitPro toolchain](https://devkitpro.org/). 
+
+## Graphics
+
+The Game Boy Advance has a couple of graphic modes. I plan to use  [Mode 3](https://www.coranac.com/tonc/text/bitmaps.htm), which is a bitmap mode, with a resolution of 240x160 and a 16-bit palette of 16 colors.
+
+
 
 # Prototyping the dimensions
 
-We'd like a layout such as
+We'd like a screen layout such as:
 
 Score Time 
 P C   F F F F
 
 1 2 3 4 5 6 7
 
-Where the P/C/F things stand for pile and card placeholders, and the numbers 1,2,3,4,5,6,7 represent the columns with their respective initial height.
+Where the P/C stands for pile and the card next to it; F is the foundation placeholder. The numbers 1,2,3,4,5,6,7 represent the columns with their respective initial height.
 
-need 6 columns of cards, 2 rows.
-padding for the board and cards
+So we need 7 columns of cards organized 2 rows. we also need some padding for the board and cards
 
-width formula:
-240 = board_padding / 2 + (card_width + card_pading * 2) * 6
+## Let's prototype in HTML / CSS
 
-height formula:
-160 = board_padding / 2 + (card_height + card_padding * 2) * 6
-
-# Let's prototype in CSS
-
-Creating a simple mock board in HTML:
+I considered multiple options on how to prototype - whethe to do it in Creating a simple mock board in HTML :
 
 ```html
    <div id="board">
@@ -64,32 +65,110 @@ Having Screen and Board entities lets us set up the board - using GBA 240x160px 
 
 #board {
     padding-top: 20px;
-    padding-left: 4px;
+    padding-left: 2px;
 }
-
 ```
 
-let board_padding = 24 
-240 - 48 = (card_width + card_pading * 2) * 6
-let card_padding = 4
-192 = (card_width + card_pading * 2) * 6
-32 = (card_width + card_pading * 2)
-24 = (card_width + card_pading * 2)
+The we can define a card class, and by twiddling the numbers I've arrived at the following dimensions: 28x36 for the card, 5 px for the margin, so the card itself is 23x36px.
 
-let card_width = 24
-let card_height = 32
+```css
+.card {
+    width: 28px;
+    height: 36px;
+    margin-left: 5px;
+    float: left;
+    background-color: white;
+}
+```
+
+Now to simulate the height part of the layout let's define the column-N class, where the N is the height of the column in cards (column-5 starts with 4 hidden cards and 1 revealed card).
+
+Using multiples of 8px scales nicely
+
+```css
+
+.column-2 {
+    padding-top: 8px;
+}
+
+.column-3 {
+    padding-top: 16px;
+}
+...
+```
+
+Keeping score
+
+The score row should probably include the score and a timer.
+
+Mocking it up as another div (above the board)
+
+```html
+<div id="score-row">Score:123   Time: 01:23</div>
+```
+
+and styling with `position:absolute` so not to move the other elements:
+
+```css
+#score-row{
+    position: absolute;
+    margin-left: 4px;
+    font-size: xx-small;
+    color:white;
+}
+```
+
+This is how it looks so far:
+
+![screenshot](assets/solitaire-css-mockup.png)
+
+# Implementing Solitaire
 
 
+# Graphics
+
+## Palette
+
+!TODO update to solitaire
+
+To obtain this palette, Python script helped convert 32-bit hexcodes into 16-bit:
+
+```python
+palette = ["#000000", "#ffffff", "#880000", "#aaffee",
+      "#cc44cc", "#00cc55", "#0000aa", "#eeee77",
+      "#dd8855", "#664400", "#ff7777", "#333333",
+      "#777777", "#aaff66", "#0088ff", "#bbbbbb"]
+
+i = 0
+for r,g,b in [(int(color[1:3],16), int(color[3:5],16), int (color[5:7],16)) for color in palette]:
+    gba_color = (((r >> 3) & 31) | (((g >> 3) & 31) << 5) | (((b >> 3) & 31) << 10))
+    print(f'palette[{i}] = {hex(gba_color)};')
+    i = i+1
+```
 
 
+## Input
 
-240 = 64 + 
+To read the keys one should call `scanKeys();` to obtain the keypad state and then call the `keysDown()` function to get the keys that have been pressed, as documented in devkitPro [`gba_input.h`](https://github.com/devkitPro/libgba/blob/master/include/gba_input.h). 
 
-score row:
-number of turns, points, timer?
+We'll need the following keys:
 
-card in windows solitaire:
-120x160 px
-aspect ratio: 12:16 = 6:8 = 3:4
+```c
+typedef enum KEYPAD_BITS {
+	KEY_A		=	(1<<0),	/*!< keypad A button */
+	KEY_B		=	(1<<1),	/*!< keypad B button */
+	KEY_SELECT	=	(1<<2),	/*!< keypad SELECT button */
+	KEY_START	=	(1<<3),	/*!< keypad START button */
+	KEY_RIGHT	=	(1<<4),	/*!< dpad RIGHT */
+	KEY_LEFT	=	(1<<5),	/*!< dpad LEFT */
+	KEY_UP		=	(1<<6),	/*!< dpad UP */
+	KEY_DOWN	=	(1<<7),	/*!< dpad DOWN */
+	KEY_R		=	(1<<8),	/*!< Right shoulder button */
+	KEY_L		=	(1<<9),	/*!< Left shoulder button */
 
-we also need to draw a cursor moved by the d-pad
+	KEYIRQ_ENABLE	=	(1<<14),	/*!< Enable keypad interrupt */
+	KEYIRQ_OR		=	(0<<15),	/*!< interrupt logical OR mode */
+	KEYIRQ_AND		=	(1<<15),	/*!< interrupt logical AND mode */
+	DPAD 		=	(KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT) /*!< mask all dpad buttons */
+} KEYPAD_BITS;
+```
