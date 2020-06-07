@@ -10,8 +10,6 @@ Let's target Gameboy Advance (GBA). It has a resolution of 240x160, four directi
 
 The Game Boy Advance has a couple of graphic modes. I plan to use  [Mode 3](https://www.coranac.com/tonc/text/bitmaps.htm), which is a bitmap mode, with a resolution of 240x160 and a 16-bit palette of 16 colors.
 
-
-
 # Prototyping the dimensions
 
 We'd like a screen layout such as:
@@ -124,8 +122,27 @@ This is how it looks so far:
 
 # Implementing Solitaire
 
+!TODO
 
 # Graphics
+
+There is no graphics library. The video RAM is mapped at the address `0x06000000`
+
+We can draw things into the video memory ourselves (set a pixel to a palette color):
+
+```c
+#define MEM_VRAM 0x06000000
+#define vid_mem ((u16 *)MEM_VRAM)
+
+inline void draw_point(int x, int y, int clr)
+{
+    vid_mem[y * SCREEN_WIDTH + x] = clr;
+};
+```
+
+## Sprites
+
+!TODO sprites
 
 ## Palette
 
