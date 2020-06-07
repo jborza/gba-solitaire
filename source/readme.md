@@ -1,3 +1,6 @@
+TODO:
+- find out about more correct terms for the 'foundation', 'bottom', 'revealed cards'
+
 # What's this about
 
 Solitaire was the first computer game I have played, ages ago, on an ancient Windows 3.1 laptop. I have never actually implemented it. 
@@ -216,7 +219,51 @@ This also can be tested during the development with a simple "test":
     ...
 ```
 
-!TODO
+We can also implement more Solitaire rules and also start representing the game state.
+
+### Game deck
+
+Let's define our first pile of cards - the deck of initial 52 cards.
+
+```c
+#define CARD_COUNT 52
+
+typedef struct deck {
+	int num_cards;
+	card** cards;
+} deck;
+
+deck* make_deck() {
+	deck* deck = mallocz(sizeof(deck));
+	deck->cards = mallocz(sizeof(card*) * CARD_COUNT);
+	deck->num_cards = 0;
+	for (int rank = 0; rank < RANK_COUNT; rank++) {
+		for (int suit = 0; suit < SUIT_COUNT; suit++) {
+			deck->cards[deck->num_cards++] = make_card_ptr(suit,rank);
+		}
+	}
+	return deck;
+}
+```
+
+It seems there are a couple more piles around Solitaire - for example, the reveled cards, the stacks of cards on the foundation, and the piles on the bottom. Seems like it would be nice to have the concept of the pile encapsulated as a structure with associated functions.
+
+```c
+typedef struct pile {
+	int num_cards;
+	card** cards;
+} pile;
+
+pile* make_pile();
+void append(pile* pile, card* card);
+card* pop(pile* pile);
+card* dequeue(pile* pile);
+card* peek_card_at(pile* pile, int index);
+```
+
+### Array vs linked list
+
+We have either the option of using a linked list to represent the collection of cards in a pile, or just assume there will never be a larger pile than 52 and go with an array as the backing store and a counter. With this, at the expense of more memory overhead per pile. As there is a known number of piles: unturned and turned card deck, 4 foundations, 7 columns, the total is 2+4+7=13 piles. On a 32-bit system, that's at most `13 * (sizeof card*) * CARD_COUNT = 13 * 4 * 52 = 2704` bytes overhead. Meh.
 
 # Graphics
 
