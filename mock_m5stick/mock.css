@@ -1,0 +1,61 @@
+#screen{
+    width:160px;
+    height: 80px;
+    background-color: green;
+}
+
+#board {
+    padding-top: 2px;
+    padding-left: 2px;
+}
+
+.card {
+    width: 20px;
+    height: 24px;
+    margin-left: 2px;
+    float: left;
+    background-color: white;
+    font-size: x-small;
+}
+
+.second-row {
+    padding-top: 4px;
+}
+
+.column-1 {}
+
+.column-2 {
+    padding-top: 4px;
+}
+
+.column-3 {
+    padding-top: 8px;
+}
+
+.column-4 {
+    padding-top: 12px;
+}
+
+.column-5 {
+    padding-top: 16px;
+}
+
+.column-6 {
+    padding-top: 20px;
+}
+
+.column-7 {
+    padding-top: 24px;
+}
+
+.row {
+    clear: both;
+}
+
+
+#score-row{
+    position: absolute;
+    margin-left: 4px;
+    font-size: xx-small;
+    color:white;
+}
