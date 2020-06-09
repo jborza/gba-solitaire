@@ -265,6 +265,12 @@ card* peek_card_at(pile* pile, int index);
 
 We have either the option of using a linked list to represent the collection of cards in a pile, or just assume there will never be a larger pile than 52 and go with an array as the backing store and a counter. With this, at the expense of more memory overhead per pile. As there is a known number of piles: unturned and turned card deck, 4 foundations, 7 columns, the total is 2+4+7=13 piles. On a 32-bit system, that's at most `13 * (sizeof card*) * CARD_COUNT = 13 * 4 * 52 = 2704` bytes overhead. Meh.
 
+On the other hand, linked lists are a kind of a traditional C structure, so it may also take us there. Let's see.
+
+## Prototyping without graphics
+
+It might not actually be such a bad idea to implement a commandline solitaire first, then do a graphical interface on top later.
+
 # Graphics
 
 There is no graphics library. The video RAM is mapped at the address `0x06000000`
