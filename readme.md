@@ -131,7 +131,7 @@ and styling with `position:absolute` so not to move the other elements:
 
 This is how it looks so far:
 
-![screenshot](assets/solitaire-css-mockup.png)
+![solitaire css mockup](assets/solitaire-css-mockup.png)
 
 # Implementing Solitaire
 
@@ -270,6 +270,104 @@ On the other hand, linked lists are a kind of a traditional C structure, so it m
 ## Prototyping without graphics
 
 It might not actually be such a bad idea to implement a commandline solitaire first, then do a graphical interface on top later.
+
+### Ncurses
+
+There's a fine text-user interface library ncurses (new curses) out there. If the unicode version `ncursesw` is used, it also supports unicode card symbols, such as ♥♠♣♦. That enables us to represent the cards as a fairly human-readable 10♠ or J♥.
+
+We can introduce helper functions such as `rank_to_charptr` and `suit_to_charptr` that we'll later use to print a card:
+
+```c
+const char *suit_to_charptr(int suit) {
+  switch (suit) {
+  case SUIT_HEART:
+    return "\u2665";
+  case SUIT_SPADE:
+    return "\u2660";
+  case SUIT_CLUB:
+    return "\u2663";
+  case SUIT_DIAMOND:
+    return "\u2666";
+  ...
+  }
+}
+```
+
+Printing a card on the screen is done with the `printw` ncurses function, which behaves like `printf`. We can also move the cursor around with the `move(int row, int column)` function.
+
+```c
+void printw_card(card *c) {
+  printw("%s%s", rank_to_charptr(c->rank), suit_to_charptr(c->suit));
+}
+```
+
+### Basic layout
+
+So far we got to the point of having the text user interface laid out:
+
+Here I also had to decide how the cards in the piles would be ordered. I think it makes sense that the first card would mostly be the displayed one - for stock, waste and fodation piles.
+
+I needed to add a `peek(pile *pile)` function to peek at the pile, as these piles would only display the top card.
+
+The column piles would be ordered 'top to bottom', so initially only the last card would be revealed, but we can draw the column from first card to the last.
+
+The rendering code is fairly uninteresting, using string arrays for headers, picking an arbitrary size (100) for the game deck terminal width, then iterating through the piles and moving the cursor around the screen.
+
+```c
+char *first_row_headers[] = {"Stock",        "Waste",        "",
+                             "Foundation 1", "Foundation 2", "Foundation 3",
+                             "Foundation 4"};
+...
+// first row headers
+int column_size = 14;
+for (int i = 0; i < 7; i++) {
+move(0, column_size * i);
+  printw("%s", first_row_headers[i]);
+}
+// first row content 
+move(1, 0);
+printw_card(peek(stock(state)));
+move(2, 0);
+printw_pile_size(stock(state));
+...
+ // foundations
+for (int f = 0; f < FOUNDATION_COUNT; f++) {
+  int foundation_1_column = 3;
+  move(1, (foundation_1_column + f) * column_size);
+  printw_card(peek(foundation(state, f)));
+  move(2, (foundation_1_column + f) * column_size);
+  printw_pile_size(foundation(state, f));
+}
+
+```
+
+At this point of development it makes sense to also show the face-down cards, represented as (Q♦). I had to add the revealed flag (face up), as it's possible to have a sequence of multiple face up cards in the columns.
+
+### Adding color to curses
+
+So far we have a hard time distinguishing 4♣ and 4♥ (four of spades and four of hearts). Ncurses should support colors reasonably easily. I've used a [tutorial by Jim Hall](https://www.linuxjournal.com/content/programming-color-ncurses) to get up to speed with the basics.
+
+There are only eight basic colors supported by the console - black, red, green, yellow, blue, magenta, cyan, white. Then we have to define a color pair with `init_pair(index, foreground, background)`. You can also pass `-1` as a color this function to use the default value.
+
+Let's just change the foreground color of the red cards:
+
+```c
+#define BLACK_PAIR 1
+#define RED_PAIR 2
+...
+init_pair(BLACK_PAIR, -1, -1);
+init_pair(RED_PAIR, COLOR_RED, -1);
+...
+attron(COLOR_PAIR(RED_PAIR));
+printw("4\u2660); //4♠
+attroff(COLOR_PAIR(RED_PAIR));
+```
+
+To actually use that color pair during printing, use `attron(COLOR_PAIR(int pair))` to turn on the color attribute. This should be later turned off by a corresponding `attroff()` call.
+
+![screenshot](assets/solitaire-curses-colors.png)
+
+# The Gameboy port
 
 # Graphics
 
