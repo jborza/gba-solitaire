@@ -367,6 +367,88 @@ To actually use that color pair during printing, use `attron(COLOR_PAIR(int pair
 
 ![screenshot](assets/solitaire-curses-colors.png)
 
+### Controls
+
+We have the option of using text-based controls, that would (in case of moving the cards) have a form of `source destination`, so for example `c3 c4` means take 1 card from column 3 and put it at column 4. We also need to draw a card from the stock, so that could be a command `s`. To move the drawn card (from the waste), we'll use `w`. As we sometimes need to move more than one card, it could be solved with a command like `3c1 c5` - take three cards from column 1 and put them at column 5.
+
+So we have a couple of possible combinations:
+
+```
+s
+c3 f1
+c7 c2
+3c4 c5
+w c4
+w f3
+```
+
+There are some things, that should not be possible. Moving multiple cards from a column to a foundation makes no sense, as they won't be ordered in ascending order of the same suit. Moving multiple cards from the waste into a column can be disallowed as well. Drawing multiple cards from the stock might be possible, but let's ignore it and add it later. Let's also prohibit moving cards from foundations elsewhere.
+
+We have multiple options on how to parse the user input in C. I initially thought of parsing it by hand going character by character and keeping track of state or using the `scanf` function with multiple input templates, such as `%c%d %c%d` for the likes of `c3 f1`. The `scanf` family of functions returns the number of specific conversions, so we can check the return value for success and cascade the checks.
+
+With the first option one should prepare the templates from the most specific to the least specific, we end up with four specific patterns:
+
+```
+%dc%d c%d -> 3c4 c5
+%dc %c%d -> c3 f1 / c7 c2
+w %c%d -> w c4 / w f3
+s -> s
+```
+
+As the parsing function `parsed_input parse_input(char *command)` should return multiple values, let's wrap it in a structure:
+
+```c
+typedef struct parsed_input {
+  char source;
+  char destination;
+  int source_index;
+  int destination_index;
+  int source_amount;
+  int success;
+} parsed_input;
+```
+
+And the parsing function is trying the patterns one by one, filling in the sources/destinations, if they are known.
+
+```c
+parsed_input parse_input(char *command){
+  parsed_input parsed;
+  parsed.success = 1;
+  parsed.source_amount = 1;
+  // parser patterns 
+  char *pattern_multi_move = "%dc%d c%d";
+  char *pattern_single_move = "c%d %c%d";
+  char *pattern_waste_move = "w %c%d";
+  char *pattern_stock = "s";
+  if(sscanf(command, pattern_multi_move, &parsed.source_amount, &parsed.source_index, &parsed.destination_index) == 3){
+    parsed.source = 'c';
+    parsed.destination = 'c';
+  }
+  else if(sscanf(command, pattern_single_move, &parsed.source_amount, &parsed.destination, &parsed.destination_index) == 3){
+    parsed.source = 'c';
+  }
+  else if(sscanf(command, pattern_waste_move, &parsed.destination, &parsed.destination_index) == 2){
+    parsed.source = 'w';
+  }
+  else if(strcmp(command, pattern_stock) == 0){
+    parsed.source = 's';
+  }
+  else{
+    parsed.success = 0;
+  }
+  return parsed;
+}
+
+```
+
+
+
+Later as a graphical interface is developed we also can have a concept of a cursor that we can move across the piles with the arrow keys.
+
+### Adding more gameplay logic
+
+### 
+
 # The Gameboy port
 
 # Graphics
