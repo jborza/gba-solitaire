@@ -343,9 +343,20 @@ for (int f = 0; f < FOUNDATION_COUNT; f++) {
 
 At this point of development it makes sense to also show the face-down cards, represented as (Q♦). I had to add the revealed flag (face up), as it's possible to have a sequence of multiple face up cards in the columns.
 
+So we end up with a representation such as:
+
+```
+Column 4 
+(4 cards)
+(J♠) 
+(A♣)  
+(Q♦)   
+6♥      
+```
+
 ### Adding color to curses
 
-So far we have a hard time distinguishing 4♣ and 4♥ (four of spades and four of hearts). Ncurses should support colors reasonably easily. I've used a [tutorial by Jim Hall](https://www.linuxjournal.com/content/programming-color-ncurses) to get up to speed with the basics.
+If we add a bit of color, the player will have have an easier time distinguishing 4♣ and 4♥ (four of spades and four of hearts). Ncurses supports colors in the terminal. I've used a [tutorial by Jim Hall](https://www.linuxjournal.com/content/programming-color-ncurses) to get up to speed with the basics.
 
 There are only eight basic colors supported by the console - black, red, green, yellow, blue, magenta, cyan, white. Then we have to define a color pair with `init_pair(index, foreground, background)`. You can also pass `-1` as a color this function to use the default value.
 
@@ -424,7 +435,7 @@ parsed_input parse_input(char *command){
     parsed.source = 'c';
     parsed.destination = 'c';
   }
-  else if(sscanf(command, pattern_single_move, &parsed.source_amount, &parsed.destination, &parsed.destination_index) == 3){
+  else if(sscanf(command, pattern_single_move, &parsed.source_index, &parsed.destination, &parsed.destination_index) == 3){
     parsed.source = 'c';
   }
   else if(sscanf(command, pattern_waste_move, &parsed.destination, &parsed.destination_index) == 2){
