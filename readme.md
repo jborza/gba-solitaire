@@ -27,10 +27,12 @@ This implies we'll have to convert our graphics into 8x8 tiles, and also implies
 
 We'd like a screen layout such as:
 
+```
 Score Time 
 P C   F F F F
 
 1 2 3 4 5 6 7
+```
 
 Where the P/C stands for pile and the card next to it; F is the foundation placeholder. The numbers 1,2,3,4,5,6,7 represent the columns with their respective initial height.
 
@@ -395,6 +397,8 @@ w f3
 
 There are some things, that should not be possible. Moving multiple cards from a column to a foundation makes no sense, as they won't be ordered in ascending order of the same suit. Moving multiple cards from the waste into a column can be disallowed as well. Drawing multiple cards from the stock might be possible, but let's ignore it and add it later. Let's also prohibit moving cards from foundations elsewhere.
 
+#### Parsing the input
+
 We have multiple options on how to parse the user input in C. I initially thought of parsing it by hand going character by character and keeping track of state or using the `scanf` function with multiple input templates, such as `%c%d %c%d` for the likes of `c3 f1`. The `scanf` family of functions returns the number of specific conversions, so we can check the return value for success and cascade the checks.
 
 With the first option one should prepare the templates from the most specific to the least specific, we end up with four specific patterns:
@@ -419,7 +423,7 @@ typedef struct parsed_input {
 } parsed_input;
 ```
 
-And the parsing function is trying the patterns one by one, filling in the sources/destinations, if they are known.
+And the parsing function is trying the patterns one by one, filling in the sources/destinations, as they are implied by some patterns.
 
 ```c
 parsed_input parse_input(char *command){
@@ -452,11 +456,42 @@ parsed_input parse_input(char *command){
 
 ```
 
+Later as a more graphical interface is developed we also can have a concept of a cursor that we can move across the piles with the arrow keys.
 
+### Adding more gameplay logic - moving the cards
 
-Later as a graphical interface is developed we also can have a concept of a cursor that we can move across the piles with the arrow keys.
+TODO move the rules / functions here for better coherence
 
-### Adding more gameplay logic
+Once we parse user's command, we know where they want to move the cards from and to. This is the time to apply the rules based on the source and destination column. We can apply a simple 'source column' rule - we can pick the **source card** from the waste or a column only if it's not empty, and we pick up the last card.
+
+The **destination** has different rules whether it's a foundation or a column, but the sequence of events is similar. We pick up the last card from the destination pile, use the game logic comparison function and if the card can be moved, we remove it from its source and push it to the end of the destination pile:
+
+```c
+card *source_card = peek_last(source_pile);
+...
+card *top_foundation_card = peek(destination_pile);
+if (can_be_placed_on_foundation(*top_foundation_card, *source_card)) {
+  pop(source_pile); //we already have a pointer to the source card
+  reveal(peek_last(source_pile)); 
+  push(destination_pile, source_card);
+  return MOVE_OK;
+} 
+```
+
+One also needs to incorporate special rules for placing aces on empty foundations, or kings on empty columns:
+
+```c
+if (parsed.destination == 'f') {
+  if (destination_pile->num_cards == 0 && source_card->rank == RANK_A) 
+    ...
+}
+...
+if (parsed.destination == 'c') {
+  if (destination_pile->num_cards == 0 && source_card->rank == RANK_K) 
+    ...
+}
+```
+
 
 ### 
 
