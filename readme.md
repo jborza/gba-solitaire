@@ -460,20 +460,27 @@ Later as a more graphical interface is developed we also can have a concept of a
 
 ### Adding more gameplay logic - moving the cards
 
-TODO move the rules / functions here for better coherence
+TODO move or link the rules / functions here for better coherence
 
 Once we parse user's command, we know where they want to move the cards from and to. This is the time to apply the rules based on the source and destination column. We can apply a simple 'source column' rule - we can pick the **source card** from the waste or a column only if it's not empty, and we pick up the last card.
 
 The **destination** has different rules whether it's a foundation or a column, but the sequence of events is similar. We pick up the last card from the destination pile, use the game logic comparison function and if the card can be moved, we remove it from its source and push it to the end of the destination pile:
 
 ```c
+void move_card(card *card, pile *source_pile, pile *destination_pile) {
+  pop(source_pile);
+  reveal(peek_last(source_pile));
+  push(destination_pile, card);
+}
+
+...
+
 card *source_card = peek_last(source_pile);
+
 ...
 card *top_foundation_card = peek(destination_pile);
 if (can_be_placed_on_foundation(*top_foundation_card, *source_card)) {
-  pop(source_pile); //we already have a pointer to the source card
-  reveal(peek_last(source_pile)); 
-  push(destination_pile, source_card);
+  move_card(source_card, source_pile, destination_pile);
   return MOVE_OK;
 } 
 ```
@@ -483,17 +490,25 @@ One also needs to incorporate special rules for placing aces on empty foundation
 ```c
 if (parsed.destination == 'f') {
   if (destination_pile->num_cards == 0 && source_card->rank == RANK_A) 
+    move_card(source_card, source_pile, destination_pile);
     ...
 }
 ...
 if (parsed.destination == 'c') {
   if (destination_pile->num_cards == 0 && source_card->rank == RANK_K) 
+    move_card(source_card, source_pile, destination_pile);
     ...
 }
 ```
 
+### Moving more than one card at a time
 
-### 
+We would also like to allow the player to move more than one card at a time, from column to column.
+
+TODO annotate the screenshot - column 5 to column 1
+![screenshot](assets/solitaire-curses-move-multiple.png)
+
+To do this, we first check
 
 # The Gameboy port
 
