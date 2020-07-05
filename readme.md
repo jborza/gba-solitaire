@@ -46,7 +46,7 @@ typedef struct card {
 };
 ```
 
-### Solitaire rules as functions
+## Solitaire rules as functions
 
 Solitaire defines a couple of card interactions, which we'll define as functions:
 - is red? 
@@ -100,51 +100,105 @@ This also can be tested during the development with a simple "test":
 
 > Note: There *are* many unit testing frameworks in C if you want to test things more correctly than dumping some code in the main() function during development
 
-### Game deck (and the data structures)
+## Game deck (and the other data structures)
 
 Let's define our first pile of cards - the deck of initial 52 cards.
+
+It seems there are a couple more piles around Solitaire - for example, waste (revealed cards), the stacks of cards on the foundation, and the piles on the bottom. Seems like it would be nice to have the concept of the pile encapsulated as a structure with associated functions. Several piles would for a game state (or the board.)
 
 ```c
 #define CARD_COUNT 52
 
-typedef struct deck {
-	int num_cards;
-	card** cards;
-} deck;
 
-deck* make_deck() {
-	deck* deck = mallocz(sizeof(deck));
-	deck->cards = mallocz(sizeof(card*) * CARD_COUNT);
-	deck->num_cards = 0;
-	for (int rank = 0; rank < RANK_COUNT; rank++) {
-		for (int suit = 0; suit < SUIT_COUNT; suit++) {
-			deck->cards[deck->num_cards++] = make_card_ptr(suit,rank);
-		}
-	}
-	return deck;
+typedef struct card_node {
+  card *value;
+  struct card_node *next;
+} card_node;
+
+typedef struct pile {
+  card_node *head;
+  int num_cards;
+} pile;
+
+typedef struct game_state {
+  pile **piles;
+  int pile_count;
+} game_state;
+```
+
+> #### Note: array vs linked list
+>
+> 
+> We have either the option of using a linked list to represent the collection of cards in a pile, or just assume there will never be a larger pile than 52 and go with an array as the backing store and a counter. With this, at the expense of more memory overhead per pile. As there is a known number of piles: unturned and turned card deck, 4 foundations, 7 columns, the total is 2+4+7=13 piles. On a 32-bit system, that's at most `13 * (sizeof card*) * CARD_COUNT = 13 * 4 * 52 = 2704` bytes overhead. Meh.
+
+On the other hand, linked lists are a kind of a traditional C structure, so it may be nicer with them. Let's see.
+
+
+We'll need a set of pile manipulation functions. Push/Pop deals with the end of the list of cards. I opted in for the JavaScript nomenclature (shift/unshift) for the functions that deal with the beginning of the list.
+
+> Java LinkedList uses names such as addFirst,addLast, pollFirst, pollLast, getFirst, getLast - they are more consistent though.
+
+```c
+pile *make_pile();
+void push(pile *pile, card *card);
+card *pop(pile *pile);
+card *shift(pile *pile);
+void unshift(pile *pile, card *card);
+card *peek_card_at(pile *pile, int index);
+card *peek(pile *pile);
+card *peek_last(pile *pile);
+```
+
+The implementation of these methods is pretty much straightforward - we either have to link or unlink an item in the list. I've also opted to use a non-intrusive list structure with the `card_node` as the node type and `card` as the data type.
+
+> #### Intrusive vs non-intrusive lists
+> The difference between intrusive and non-intrusive containers is that the *value* types in the intrusive containers *know* they are a part of some collection, which means the links are embedded in the structure, for example:
+> ```c
+> typedef struct card {
+>  int rank;
+>  int suit;
+>  struct card* next
+> } card;
+> ```
+> In a non-intrusive list the *value* types don't embed the links, so that's why we introduced the `card_node` node type that has a pointer to a `card` value. 
+>
+> This affects the implementation of list manipulation functions and performance - intrusive lists do less allocations and less dereferencing on iteration. Using non-intrusive containers separates the value and the container data, and I like separation of concerns (and responsibilities) in software. 
+> 
+> I also may be influenced by Java/C# and likes where the platform-provided data structures are non-intrusive.
+
+
+### Initializing the game
+
+
+Having the basic functions around, let's write the first game deck function that fills an initial deck of cards.
+
+```c
+void fill_deck(pile *pile) {
+  for (int rank = 0; rank < RANK_COUNT; rank++) {
+    for (int suit = 0; suit < SUIT_COUNT; suit++) {
+      push(pile, make_card_ptr(suit, rank));
+    }
+  }
 }
 ```
 
-It seems there are a couple more piles around Solitaire - for example, waste (revealed cards), the stacks of cards on the foundation, and the piles on the bottom. Seems like it would be nice to have the concept of the pile encapsulated as a structure with associated functions.
+#### Shuffling the deck
+
+As there is no built-in list shuffle function, I had to roll my own. It's similar to [Fisher-Yates shuffle](https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle), but we don't technically swap elements, but take the first element and insert it into a random spot.
 
 ```c
-typedef struct pile {
-	int num_cards;
-	card** cards;
-} pile;
-
-pile* make_pile();
-void append(pile* pile, card* card);
-card* pop(pile* pile);
-card* dequeue(pile* pile);
-card* peek_card_at(pile* pile, int index);
+void shuffle_pile(pile *pile) {
+  int shuffle_times = pile->num_cards * 10;
+  for (int i = 0; i < shuffle_times; i++) {
+    // unshift a card and insert to random place
+    int idx = rand() % pile->num_cards - 1;
+    card_ptr card = shift(pile);
+    insert(pile, card, idx);
+  }
+}
 ```
 
-### Array vs linked list
 
-We have either the option of using a linked list to represent the collection of cards in a pile, or just assume there will never be a larger pile than 52 and go with an array as the backing store and a counter. With this, at the expense of more memory overhead per pile. As there is a known number of piles: unturned and turned card deck, 4 foundations, 7 columns, the total is 2+4+7=13 piles. On a 32-bit system, that's at most `13 * (sizeof card*) * CARD_COUNT = 13 * 4 * 52 = 2704` bytes overhead. Meh.
-
-On the other hand, linked lists are a kind of a traditional C structure, so it may be nicer with them. Let's see.
 
 ## Prototyping without graphics
 
@@ -332,7 +386,7 @@ parsed_input parse_input(char *command){
 
 ```
 
-Later as a more graphical interface is developed we also can have a concept of a cursor that we can move across the piles with the arrow keys.
+Later as a more graphical interface is developed we also could have a concept of a cursor that we can move across the piles with the arrow keys.
 
 ### Adding more gameplay logic - moving the cards
 
@@ -385,7 +439,7 @@ We would also like to allow the player to move more than one card at a time, fro
 
 To do this, we have to change the logic of moving - from checking whether the *bottommost* card of the source column fits the destination column to checking whether the *N-th* card fits.
 
-Also, if it can be moved, we can't just pop the bottommost card from the source pile, but remove the N-th card possible from the middle of the pile, which means implementing one more linked list manipulation function `delete(pile*, card*)`.
+This was luckily only a single for-loop around the entire card moving logic, with one caveat: we can't just pop the bottommost card from the source pile, but remove the N-th card possible from the middle of the pile, which means implementing one more linked list manipulation function `delete(pile*, card*)`.
 
 ```c
 // remove a card from a pile, relinking the list
@@ -410,9 +464,11 @@ void delete (pile *pile, card *card) {
 }
 ```
 
-TODO debugging - gdb, core dump, backtrace from core dump
-
 ### Debugging with gdb(tui)
+
+TODO add gdb session screenshot
+
+TODO add gdbtui session screenshot
 
 ### Debugging from dumps
 
