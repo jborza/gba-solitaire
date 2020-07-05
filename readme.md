@@ -1,152 +1,34 @@
-TODO:
-- find out about more correct terms for the 'foundation', 'bottom', 'revealed cards'
-
-# What's this about
-
-Solitaire was the first computer game I have played, ages ago, on an ancient Windows 3.1 laptop. I have never actually implemented it. 
-
-# The target platform
-
-Let's target Gameboy Advance (GBA). It has a resolution of 240x160, capable of displaying 32,768 (15-bit) colors. The input our directional buttons on the d-pad, and A, B buttons and runs and ARM7 CPU at 6.78 MHz. The games are stored on cartridges containing the ROM with the code and data. 
-
-In terms of capabilities it's like a hardware 2D engine, being able to display sprites at arbitrary locations, with hardware rotation and scaling, but also offering a bitmapped mode, sound generators, etc.
-
-There is no operating system running on the GBA, it's just bare metal. To interface with the hardware we'll use memory-mapped IO - for example the bitmapped mode works this way - by setting bytes of memory after the address `0x06000000` to something, pixels get drawn on the screen.
-
-We can develop in C using the excellent [devkitPro toolchain](https://devkitpro.org/). 
-
-## Graphics
-
-The Game Boy Advance has a couple of graphic modes. I plan either to use [Mode 3](https://www.coranac.com/tonc/text/bitmaps.htm), which is a bitmapped mode, with a resolution of 240x160 and a 16-bit palette of 16 colors. Or jump into the hardware accelerated graphics mode, which deals with sprites, tiles and background.
-
-A tile is an 8x8 pixel bitmap. It can have 4bpp or 8bpp colors, the latter obviously requiring more memory (64 bytes vs 32 bytes) A sprite is composed of multiple tiles. Tiles are stored in charblocks. A charblock has a size of 16 kb, so there's a room for 512 (or 256) tiles.
-
-This implies we'll have to convert our graphics into 8x8 tiles, and also implies that the game objects (such as cards) should be sized in multiples of 8 pixels as well.
-
-# Prototyping the dimensions
-
-We'd like a screen layout such as:
-
-```
-Score Time 
-P C   F F F F
-
-1 2 3 4 5 6 7
-```
-
-Where the P/C stands for pile and the card next to it; F is the foundation placeholder. The numbers 1,2,3,4,5,6,7 represent the columns with their respective initial height.
-
-So we need 7 columns of cards organized 2 rows. we also need some padding for the board and cards
-
-## Let's prototype in HTML / CSS
-
-I considered multiple options on how to prototype - whethe to do it in Creating a simple mock board in HTML :
-
-```html
-   <div id="board">
-        <div class="row">
-            <div id="pile" class="card">P</div>
-            <div class="card">?</div>
-            <div class="card" id="blank">?</div>
-            <div class="card" id="f1">A1</div>
-            <div class="card" id="f2">A2</div>
-            <div class="card" id="f3">A3</div>
-            <div class="card" id="f4">A4</div>
-        </div>
-        <div class="row second-row">
-            <div class="card column-1" id="p1">1</div>
-            <div class="card column-2" id="p2">2</div>
-            <div class="card column-3" id="p3">3</div>
-            <div class="card column-4" id="p4">4</div>
-            <div class="card column-5" id="p5">5</div>
-            <div class="card column-6" id="p6">6</div>
-            <div class="card column-7" id="p7">7</div>
-        </div>
-    </div>
-```
-
-We can define the basic styles in CSS and tweak the numbers as we go.
-
-Having Screen and Board entities lets us set up the board - using GBA 240x160px dimensions for screen and padding to make space for the score row:
-
-```css
-#screen{
-    width:240px;
-    height: 160px;
-    background-color: green;
-}
-
-#board {
-    padding-top: 20px;
-    padding-left: 2px;
-}
-```
-
-The we can define a card class, and by twiddling the numbers I've arrived at the following dimensions: 28x36 for the card, 5 px for the margin, so the card itself is 23x36px.
-
-```css
-.card {
-    width: 28px;
-    height: 36px;
-    margin-left: 5px;
-    float: left;
-    background-color: white;
-}
-```
-
-Now to simulate the height part of the layout let's define the column-N class, where the N is the height of the column in cards (column-5 starts with 4 hidden cards and 1 revealed card).
-
-Using multiples of 8px scales nicely
-
-```css
-
-.column-2 {
-    padding-top: 8px;
-}
-
-.column-3 {
-    padding-top: 16px;
-}
-...
-```
-
-Keeping score
-
-The score row should probably include the score and a timer.
-
-Mocking it up as another div (above the board)
-
-```html
-<div id="score-row">Score:123   Time: 01:23</div>
-```
-
-and styling with `position:absolute` so not to move the other elements:
-
-```css
-#score-row{
-    position: absolute;
-    margin-left: 4px;
-    font-size: xx-small;
-    color:white;
-}
-```
-
-This is how it looks so far:
-
-![solitaire css mockup](assets/solitaire-css-mockup.png)
-
 # Implementing Solitaire
 
-Let's start by defining the cards and some relations.
-There are four suits: 
-- ♥ Heart 
-- ♠ Spade
-- ♣ Club
-- ♦ Diamond
+Solitaire was the first computer game I have played, ages ago, on an ancient Windows 3.1 laptop. I have never actually implemented it. When I say Solitaire, I actually mean the [Klondike](https://en.wikipedia.org/wiki/Klondike_(solitaire)) variant, which I think is the most commonly known amongst the computer players. 
 
-There are also the ranks (ascending)
+## Tech stack
 
-- A, 2, 3, 4, 5, 6, 7, 8, 9, 10, J, Q, K
+I like C these days, there's something zen-like about being close to the machine and almost universally portable. The standard library doesn't offer as much convencience as, say, Python, Java or JavaScript, but we won't need too many complicated data structures, so we can roll our own.
+
+There won't initially be a graphical version, but a terminal character-based version seems like a good idea in the spirit of doing one thing at a time - some game logic first, some user interface later and maybe a GUI even later. 
+
+## Architecture
+
+I don't do that much upfront planning for pet projects, they mostly evolve on the go. However, in this game, the plan is to proceed along the following lines:
+
+- Define the basic game object data structure (the cards)
+- Implement and test the basic interactions between the cards
+- Define more game data structure (game board, piles of cards)
+- Implement common operations on these structure (linked list fun)
+- Display the current game state on the screen
+- Parse user input
+- Execute actions based on the user input  
+
+## The cards
+
+Solitaire is played with a standard 52-card deck with four suits: 
+
+> ♥ Heart, ♠ Spade, ♣ Club, ♦ Diamond
+
+and thirteen ranks (in ascending order)
+
+> A, 2, 3, 4, 5, 6, 7, 8, 9, 10, J, Q, K
 
 Hence the card structure can be defined in C as: 
 ```c
@@ -164,10 +46,9 @@ typedef struct card {
 };
 ```
 
-## Rules as function
+### Solitaire rules as functions
 
 Solitaire defines a couple of card interactions, which we'll define as functions:
-- is ace? (can be placed on top of a blank pile)
 - is red? 
 - is black?
 - are alternate colors? (as card colors in columns must alternate between red and black)
@@ -175,7 +56,7 @@ Solitaire defines a couple of card interactions, which we'll define as functions
 - can be placed on foundation? (A♥ -> 2♥ -> 3♥ -> K♥)
 - can be placed on bottom? (is alternate and is in sequence) ( J♦ -> 10♠ -> 9♥ -> 8♣ -> 7♥)
 
-Can be implemented as a set of simple C functions:
+These can be implemented as a set of simple C functions:
 ```c
 int is_black(card c) {
 	return c.suit == SUIT_CLUB || c.suit == SUIT_SPADE;
@@ -183,10 +64,6 @@ int is_black(card c) {
 
 int is_red(card c) {
 	return c.suit == SUIT_HEART || c.suit == SUIT_DIAMOND;
-}
-
-int is_ace(card c) {
-	return c.rank == RANK_A;
 }
 
 int is_alternate_color(card first, card second) {
@@ -221,9 +98,9 @@ This also can be tested during the development with a simple "test":
     ...
 ```
 
-We can also implement more Solitaire rules and also start representing the game state.
+> Note: There *are* many unit testing frameworks in C if you want to test things more correctly than dumping some code in the main() function during development
 
-### Game deck
+### Game deck (and the data structures)
 
 Let's define our first pile of cards - the deck of initial 52 cards.
 
@@ -248,7 +125,7 @@ deck* make_deck() {
 }
 ```
 
-It seems there are a couple more piles around Solitaire - for example, the reveled cards, the stacks of cards on the foundation, and the piles on the bottom. Seems like it would be nice to have the concept of the pile encapsulated as a structure with associated functions.
+It seems there are a couple more piles around Solitaire - for example, waste (revealed cards), the stacks of cards on the foundation, and the piles on the bottom. Seems like it would be nice to have the concept of the pile encapsulated as a structure with associated functions.
 
 ```c
 typedef struct pile {
@@ -267,15 +144,14 @@ card* peek_card_at(pile* pile, int index);
 
 We have either the option of using a linked list to represent the collection of cards in a pile, or just assume there will never be a larger pile than 52 and go with an array as the backing store and a counter. With this, at the expense of more memory overhead per pile. As there is a known number of piles: unturned and turned card deck, 4 foundations, 7 columns, the total is 2+4+7=13 piles. On a 32-bit system, that's at most `13 * (sizeof card*) * CARD_COUNT = 13 * 4 * 52 = 2704` bytes overhead. Meh.
 
-On the other hand, linked lists are a kind of a traditional C structure, so it may also take us there. Let's see.
+On the other hand, linked lists are a kind of a traditional C structure, so it may be nicer with them. Let's see.
 
 ## Prototyping without graphics
 
-It might not actually be such a bad idea to implement a commandline solitaire first, then do a graphical interface on top later.
 
 ### Ncurses
 
-There's a fine text-user interface library ncurses (new curses) out there. If the unicode version `ncursesw` is used, it also supports unicode card symbols, such as ♥♠♣♦. That enables us to represent the cards as a fairly human-readable 10♠ or J♥.
+There's a fine text-user interface library ncurses (new curses) out there. Using its Unicode version `ncursesw` we get support for Unicode card symbols, such as ♥♠♣♦. That enables us to represent the cards as a fairly human-readable 10♠ or J♥.
 
 We can introduce helper functions such as `rank_to_charptr` and `suit_to_charptr` that we'll later use to print a card:
 
@@ -505,83 +381,55 @@ if (parsed.destination == 'c') {
 
 We would also like to allow the player to move more than one card at a time, from column to column.
 
-TODO annotate the screenshot - column 5 to column 1
 ![screenshot](assets/solitaire-curses-move-multiple.png)
 
-To do this, we first check
+To do this, we have to change the logic of moving - from checking whether the *bottommost* card of the source column fits the destination column to checking whether the *N-th* card fits.
 
-# The Gameboy port
-
-# Graphics
-
-There is no graphics library. The video RAM is mapped at the address `0x06000000`
-
-We can draw things into the video memory ourselves (set a pixel to a palette color):
+Also, if it can be moved, we can't just pop the bottommost card from the source pile, but remove the N-th card possible from the middle of the pile, which means implementing one more linked list manipulation function `delete(pile*, card*)`.
 
 ```c
-#define MEM_VRAM 0x06000000
-#define vid_mem ((u16 *)MEM_VRAM)
-
-inline void draw_point(int x, int y, int clr)
-{
-    vid_mem[y * SCREEN_WIDTH + x] = clr;
-};
+// remove a card from a pile, relinking the list
+void delete (pile *pile, card *card) {
+  if (is_empty(pile)) {
+    return;
+  }
+  // no previous node for the first item
+  card_node *prev = NULL;
+  card_node *current;
+  for (current = pile->head; current != NULL;
+       prev = current, current = current->next) {
+    if (current->value == card) {
+      // skip the current item in the list
+      pile->head = current->next;
+      // decrement the card counter 
+      pile->num_cards--;
+      free(current);
+      return;
+    }
+  }
+}
 ```
 
-## Sprites
+TODO debugging - gdb, core dump, backtrace from core dump
 
-!TODO sprites
+### Debugging with gdb(tui)
 
-## Palette
+### Debugging from dumps
 
-!TODO update to solitaire
+The game was crashing when I attempted to move the entire column (two or more cards) to another column. 
 
-To obtain this palette, Python script helped convert 32-bit hexcodes into 16-bit:
+If you're prepared for this, you can have the debugger ready and step through the code yourself. Another way to debug a crash like is to take a core dump (of the debug build, compiled with `-g`, so we'll have symbols available), and load it with
 
-```python
-palette = ["#000000", "#ffffff", "#880000", "#aaffee",
-      "#cc44cc", "#00cc55", "#0000aa", "#eeee77",
-      "#dd8855", "#664400", "#ff7777", "#333333",
-      "#777777", "#aaff66", "#0088ff", "#bbbbbb"]
+`gdb ./solitaire core.1000.5629.1593719583`
 
-i = 0
-for r,g,b in [(int(color[1:3],16), int(color[3:5],16), int (color[5:7],16)) for color in palette]:
-    gba_color = (((r >> 3) & 31) | (((g >> 3) & 31) << 5) | (((b >> 3) & 31) << 10))
-    print(f'palette[{i}] = {hex(gba_color)};')
-    i = i+1
-```
+Then use the `bt` (backtrace) command to get a stack trace from the time of the crash. Examining variables and parameters works the same way as during live debugging. 
 
+I have found out that there was a [bug](https://github.com/jborza/solitaire-cli/commit/a5f14a442418830464d953e33324822a90c7464b) in the `delete()` function if a first item was being removed from the list. Shame on me, I should have bothered with the unit tests.
 
-## Input
+TODO using valgrind for memory leaks
 
-To read the keys one should call `scanKeys();` to obtain the keypad state and then call the `keysDown()` function to get the keys that have been pressed, as documented in devkitPro [`gba_input.h`](https://github.com/devkitPro/libgba/blob/master/include/gba_input.h). 
+TODO using srand() for reproducible parties
 
-We'll need the following keys:
+TODO discuss save/load
 
-```c
-typedef enum KEYPAD_BITS {
-	KEY_A		=	(1<<0),	/*!< keypad A button */
-	KEY_B		=	(1<<1),	/*!< keypad B button */
-	KEY_SELECT	=	(1<<2),	/*!< keypad SELECT button */
-	KEY_START	=	(1<<3),	/*!< keypad START button */
-	KEY_RIGHT	=	(1<<4),	/*!< dpad RIGHT */
-	KEY_LEFT	=	(1<<5),	/*!< dpad LEFT */
-	KEY_UP		=	(1<<6),	/*!< dpad UP */
-	KEY_DOWN	=	(1<<7),	/*!< dpad DOWN */
-	KEY_R		=	(1<<8),	/*!< Right shoulder button */
-	KEY_L		=	(1<<9),	/*!< Left shoulder button */
-
-	KEYIRQ_ENABLE	=	(1<<14),	/*!< Enable keypad interrupt */
-	KEYIRQ_OR		=	(0<<15),	/*!< interrupt logical OR mode */
-	KEYIRQ_AND		=	(1<<15),	/*!< interrupt logical AND mode */
-	DPAD 		=	(KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT) /*!< mask all dpad buttons */
-} KEYPAD_BITS;
-```
-
-# Next target
-M5Stick C
-80x160 LCD
-
-Here we have to drastically reduce card and board size (80x160).
-As M5Stick has only three buttons, we probably need to use and alternate control method. 
-Using the accelerometer to tap the stick from the left/right/top/bottom side we could move the cursor and use the big M5 button as the selector.
+TODO scoring
