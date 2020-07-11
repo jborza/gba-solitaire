@@ -483,11 +483,68 @@ void delete (pile *pile, card *card) {
 }
 ```
 
+
+### Keeping score
+
+Now that the game mostly works, we can fit a scoring mechanism in. The standard scoring for Windows Solitaire [according to Wikipedia](https://en.wikipedia.org/wiki/Klondike_(solitaire)#Scoring) is: 
+
+| Move | Score |
+| --- | ---- |
+| Waste to Column |	5 |
+| Waste to Foundation |	10 |
+| Column to Foundation |	10 |
+| Turn over Column card |	5 |
+| Recycle waste  |	−100 |
+
+Note that the score also should not go lower than zero.
+
+We know when all these events occur, so we can add score manipulation one by one with a small helper function: 
+
+```c
+void add_score(game_state *state, int score){
+  state->score += score;
+  if(state->score < 0) {
+    state->score = 0;
+  }
+}
+```
+
+It also made sense to enrich the `pile` type to keep track of its pile type (column, foundation, etc) to keep most of the scoring in the `move_card` function:
+
+```c
+void move_card(game_state *state, card *card, pile *source_pile, pile *destination_pile) {
+  ...
+  //add score for the moves
+  if(destination_pile->type == 'f'){
+    add_score(state, 10);
+  }
+  if(source_pile->type == 'w' && destination_pile->type == 'c'){
+    add_score(state, 5);
+  }
+}
+```
+
+## My development setup
+
+I wanted to try new things while developing this game, so I wanted to use the "traditional" vim+gdb Linux stack. It was quite slow 
+
+### Vim
+
+Syntax coloring is a must. To make vim behave more like a modern IDE I also configured it to 
+- expand tabs to spaces
+- use clang-format for code autoformatting-
+- use Tab key to toggle autocompletion and Return to confirm it
+- use Tagbar to show a list of identifiers to the right for quick navigation
+
+I found it pretty useful to keep the `.vimrc` file as a [gist](https://gist.github.com/jborza/b1c1ac4991d81a9c724883f232905524), that way it's accessible from all my machines.
+
+TODO add vim session screenshot - solitaire-curses-vim
+
 ### Debugging with gdb(tui)
 
 TODO add gdb session screenshot
 
-TODO add gdbtui session screenshot
+TODO add gdbtui session screenshot - solitaire-curses-gdbtui
 
 ### Debugging from dumps
 
@@ -552,9 +609,3 @@ The culprit is the wrong argument to `sizeof(card *)`, as I was allocating a siz
 ...
 394: card->revealed = 1;
 ```
-
-TODO discuss save/load
-
-TODO scoring
-
-TODO re-hide all cards if we wrap the stock around
