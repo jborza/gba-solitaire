@@ -544,15 +544,42 @@ I found it pretty useful to keep the `.vimrc` file as a [gist](https://gist.gith
 
 First thing you need is to compile with debug symbols, using GCC flag `-g`. This can be also done in the Makefile, I've created a `debug` target that builds with symbols.
 
-The most useful gdb commands were `p` for printing, `b` for breakpoint, then `n/next` and `s/step` for stepping throught the code. You can also list the source code in gdb, but I found it a bit slower to always list the code. To make it a bit closer to a modern IDE, I've used `gdbtui` - GDB's text user interface. The default view there is split between the code and gdb console:
+The most useful gdb commands were `p` for printing a value of an expression, `b` for breakpoint, then `n/next` and `s/step` for stepping throught the code. You can watch variables or expressions with `watch`.
 
-![screenshot](assets/solitaire-curses-gdb.png)
+```c
+...
+(gdb) n
+370	  for (int i = 0; i < shuffle_times; i++) {
+(gdb) n
+372	    int idx = rand() % pile->num_cards - 1;
+(gdb) watch idx
+Hardware watchpoint 2: idx
+(gdb) n
+
+Hardware watchpoint 2: idx
+
+Old value = 0
+New value = 40
+shuffle_pile (pile=0x55555555e280) at main.c:373
+373	    card_ptr card = shift(pile);
+(gdb) p *card
+$2 = {suit = 0, rank = 0, revealed = 0}
+
+```
+
+You can also list the source code in gdb with `list`, but I found it a bit slower to always list the code.
+
+To make it a bit closer to a modern IDE, I've used `gdbtui` - GDB's text user interface. The default view there is split between the code and gdb console:
+
+![screenshot](assets/solitaire-curses-gdbtui.png)
 
 It's a bit more useful than the plain gdb interface as we can see the breakpoints, line numbers and the code, but we can't reasonably watch variables like in more modern IDEs.
 
 ### Debugging with ddd (data display debugger)
 
-There's also the 'big guns'.
+There's also the 'big guns' called [DDD - Data Display Debugger](https://www.gnu.org/software/ddd/). I would call it a visualization frontend to gdb, which can do all gdtbui can (show source, control gdb), but it can also visualize variables, expressions and even plot them.
+
+![screenshot](assets/solitaire-curses-ddd.png)
 
 ### Debugging from dumps
 
