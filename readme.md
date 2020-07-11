@@ -388,6 +388,18 @@ parsed_input parse_input(char *command){
 
 Later as a more graphical interface is developed we also could have a concept of a cursor that we can move across the piles with the arrow keys.
 
+#### Getting reproducible games with srand() 
+
+The pseudorandom number generator we use - `rand()` needs a seed to generate the sequence of numbers from. If the seed is the same, the sequence ends up being the same on different runs of the application. According to the [man page of srand](https://linux.die.net/man/3/srand), _If no seed value is provided, the rand() function is automatically seeded with a value of 1._
+
+It's a common practice to seed the generator with a value from the system clock:
+
+```c
+srand(time(NULL));
+```
+
+It also means that if we use a specific value, like `srand(123)`, we can use it to reproduce a specific sequence of cards being dealt.
+
 ### Adding more gameplay logic - moving the cards
 
 TODO move or link the rules / functions here for better coherence
@@ -485,13 +497,61 @@ If you're prepared for this, you can have the debugger ready and step through th
 
 `gdb ./solitaire core.1000.5629.1593719583`
 
+> Enabling core dumps on Ubuntu
+> 
+> As core dumps (of non-packages) were disabled by default on my macihne, I needed to run the following commands
+> ```bash
+> ulimit -c unlimited
+> sudo sysctl -w kernel.core_pattern=core.%u.%p.%t
+> ```
+> which overrides the default size limit for core dump of 0 kilobytes and sets a pattern of the core file to end up in the current directory and look like core.123.456.123456789
+
 Then use the `bt` (backtrace) command to get a stack trace from the time of the crash. Examining variables and parameters works the same way as during live debugging. 
 
 I have found out that there was a [bug](https://github.com/jborza/solitaire-cli/commit/a5f14a442418830464d953e33324822a90c7464b) in the `delete()` function if a first item was being removed from the list. Shame on me, I should have bothered with the unit tests.
 
-TODO using valgrind for memory leaks
+### Checking for memory trouble with valgrind
 
-TODO using srand() for reproducible parties
+At various stages of development I used [Valgrind](https://valgrind.org/) to check for memory leaks or invalid access. Its output can be redirected to a file, 
+
+``` bash
+valgrind --log-file=valgrind.log ./solitaire
+```
+
+Valgrind can alert us to various kind of mistakes, for example
+
+```
+==4876== Invalid write of size 4
+==4876==    at 0x109F94: reveal (main.c:394)
+==4876==    by 0x109FF6: turn (main.c:406)
+==4876==    by 0x10A0C9: deal (main.c:428)
+==4876==    by 0x10A752: prepare_game (main.c:575)
+==4876==    by 0x10ADE4: main (main.c:768)
+==4876==  Address 0x4b59658 is 0 bytes after a block of size 8 alloc'd
+==4876==    at 0x483B7F3: malloc (in /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so)
+==4876==    by 0x109484: mallocz (main.c:16)
+==4876==    by 0x10968F: make_card_ptr (main.c:137)
+==4876==    by 0x109CD3: fill_deck (main.c:301)
+==4876==    by 0x10A73A: prepare_game (main.c:573)
+==4876==    by 0x10ADE4: main (main.c:768)
+```
+
+Following the line numbers we can see that the `reveal` function is setting `card->revealed`, which is the invalid write. Valgrind also tells us the block was allocated in `make_card_ptr` and had a size 8, which is strange, as the `card` structure contains three 32-bit (4-byte) integers, which is 12 bytes.
+
+The culprit is the wrong argument to `sizeof(card *)`, as I was allocating a size of a pointer-to-card, which on my 64-bit system was 64 bits, so 8 bytes, instead of `sizeof(card)`, which has enough space.
+
+```c
+48: typedef struct card {
+49:  int suit;
+50:  int rank;
+51:  int revealed;
+52: } card;
+
+136: card *make_card_ptr(int suit, int rank) {
+137:   card *c = mallocz(sizeof(card *));
+...
+394: card->revealed = 1;
+```
 
 TODO discuss save/load
 
