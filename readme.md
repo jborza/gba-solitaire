@@ -526,7 +526,7 @@ void move_card(game_state *state, card *card, pile *source_pile, pile *destinati
 
 ## My development setup
 
-I wanted to try new things while developing this game, so I wanted to use the "traditional" vim+gdb Linux stack. It was quite slow 
+I wanted to try new things while developing this game, so I wanted to use the "traditional" vim + gcc + gdb Linux stack. It was quite slow 
 
 ### Vim
 
@@ -538,19 +538,27 @@ Syntax coloring is a must. To make vim behave more like a modern IDE I also conf
 
 I found it pretty useful to keep the `.vimrc` file as a [gist](https://gist.github.com/jborza/b1c1ac4991d81a9c724883f232905524), that way it's accessible from all my machines.
 
-TODO add vim session screenshot - solitaire-curses-vim
+![screenshot](assets/solitaire-curses-vim.png)
 
 ### Debugging with gdb(tui)
 
-TODO add gdb session screenshot
+First thing you need is to compile with debug symbols, using GCC flag `-g`. This can be also done in the Makefile, I've created a `debug` target that builds with symbols.
 
-TODO add gdbtui session screenshot - solitaire-curses-gdbtui
+The most useful gdb commands were `p` for printing, `b` for breakpoint, then `n/next` and `s/step` for stepping throught the code. You can also list the source code in gdb, but I found it a bit slower to always list the code. To make it a bit closer to a modern IDE, I've used `gdbtui` - GDB's text user interface. The default view there is split between the code and gdb console:
+
+![screenshot](assets/solitaire-curses-gdb.png)
+
+It's a bit more useful than the plain gdb interface as we can see the breakpoints, line numbers and the code, but we can't reasonably watch variables like in more modern IDEs.
+
+### Debugging with ddd (data display debugger)
+
+There's also the 'big guns'.
 
 ### Debugging from dumps
 
 The game was crashing when I attempted to move the entire column (two or more cards) to another column. 
 
-If you're prepared for this, you can have the debugger ready and step through the code yourself. Another way to debug a crash like is to take a core dump (of the debug build, compiled with `-g`, so we'll have symbols available), and load it with
+If you're prepared for this, you can have the debugger ready and step through the code yourself. Another way to debug a crash like is to take a core dump (), and load it with
 
 `gdb ./solitaire core.1000.5629.1593719583`
 
